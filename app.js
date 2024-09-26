@@ -1,6 +1,7 @@
 const express = require('express')
 var cors = require('cors')
 const mysql = require('mysql2/promise');
+const z = require('zod');
 const app = express()
 const port = 3001
 
@@ -23,7 +24,12 @@ app.get('/api/user', async (req, res) => {
     'SELECT * FROM `User`'
     );
 
-  res.send(results);
+  res.send(results.map(result => ({
+    id: result['id'],
+    firstName: result['first_name'],
+    lastName: result['last_name'],
+    email: result['email'],
+  })));
 })
 
 app.delete('/api/user/:userId/delete', async (req, res) => {
@@ -47,6 +53,22 @@ app.delete('/api/user/:userId/delete', async (req, res) => {
 })
 
 app.post('/api/user/create', async (req, res) => {
+  const zCreateUser = z.object({
+    firstName: z.string().min(3),
+    lastName: z.string().min(3),
+    email: z.string().email(),
+  });
+
+  const parseResult = zCreateUser.safeParse(req.body);
+  if (!parseResult.success) {
+    console.log("Parse user error", parseResult.error);
+    res.send({
+      status: 'error',
+      message: 'Fornavn, etternavn og e-post må oppgis i gyldig format.',
+    });
+    return
+  }
+
   // Get the client
   // Create the connection to database
   const connection = await mysql.createConnection({
@@ -56,11 +78,11 @@ app.post('/api/user/create', async (req, res) => {
     password: 'Bombe656..'
   });
 
-  const body = req.body;
-  
+  const user = parseResult.data;
+
   const [results] = await connection.execute(
     'insert into user (first_name, last_name, email) values (?, ?, ?)',
-      [body['firstName'], body['lastName'], body['email']]
+      [user.firstName, user.lastName, user.email]
   );
 
   const anyAffectedRows = results.affectedRows > 0
