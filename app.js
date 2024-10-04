@@ -73,7 +73,6 @@ app.post('/api/user/create', async (req, res) => {
 
   const parseResult = zCreateUser.safeParse(req.body);
   if (!parseResult.success) {
-    console.log("Parse user error", parseResult.error);
     res.status(400);
     res.send({
       status: 'error',
